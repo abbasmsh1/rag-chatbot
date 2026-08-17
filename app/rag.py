@@ -1,5 +1,12 @@
-"""Chunking, vector store, and answer generation."""
+"""Chunking, in-memory vector store, and answer generation.
+
+The store is plain numpy cosine similarity: no external vector DB, so the same
+code runs locally and on serverless (Vercel). Swap InMemoryStore for a hosted
+store (Pinecone, Chroma server) when your corpus outgrows RAM.
+"""
 import os
+
+import numpy as np
 
 MIN_SCORE = 0.25  # below this similarity, refuse instead of hallucinate
 
@@ -35,44 +42,42 @@ def build_prompt(question, contexts):
 
 
 class RagStore:
-    """ChromaDB-backed store with OpenAI embeddings and chat completion."""
+    """In-memory store with OpenAI embeddings and chat completion."""
 
-    def __init__(self, persist_dir="chroma_db"):
-        import chromadb
+    def __init__(self):
         from openai import OpenAI
 
         self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        self.db = chromadb.PersistentClient(path=persist_dir)
-        self.collection = self.db.get_or_create_collection("docs")
+        self.vectors = np.zeros((0, 1536), dtype=np.float32)
+        self.chunks = []
+        self.sources = []
 
     def _embed(self, texts):
         resp = self.client.embeddings.create(model="text-embedding-3-small", input=texts)
-        return [d.embedding for d in resp.data]
+        return np.array([d.embedding for d in resp.data], dtype=np.float32)
 
     def ingest(self, text, source):
         chunks = chunk_text(text)
         if not chunks:
             return 0
-        ids = [f"{source}-{i}" for i in range(len(chunks))]
-        self.collection.upsert(
-            ids=ids,
-            documents=chunks,
-            embeddings=self._embed(chunks),
-            metadatas=[{"source": source}] * len(chunks),
-        )
+        emb = self._embed(chunks)
+        emb /= np.linalg.norm(emb, axis=1, keepdims=True)
+        self.vectors = np.vstack([self.vectors, emb])
+        self.chunks.extend(chunks)
+        self.sources.extend([source] * len(chunks))
         return len(chunks)
 
     def ask(self, question, k=4):
-        q_emb = self._embed([question])[0]
-        res = self.collection.query(query_embeddings=[q_emb], n_results=k)
-        docs = res["documents"][0]
-        metas = res["metadatas"][0]
-        dists = res["distances"][0]
-        # chroma returns distances; convert to similarity
+        if not self.chunks:
+            return {"answer": "No documents ingested yet - upload one first.", "sources": []}
+        q = self._embed([question])[0]
+        q /= np.linalg.norm(q)
+        sims = self.vectors @ q
+        order = np.argsort(sims)[::-1][:k]
         hits = [
-            {"chunk": d, "source": m["source"], "score": round(1 - dist, 3)}
-            for d, m, dist in zip(docs, metas, dists)
-            if 1 - dist >= MIN_SCORE
+            {"chunk": self.chunks[i], "source": self.sources[i], "score": round(float(sims[i]), 3)}
+            for i in order
+            if sims[i] >= MIN_SCORE
         ]
         if not hits:
             return {"answer": "I don't know - nothing in the ingested documents covers this.", "sources": []}

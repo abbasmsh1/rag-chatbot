@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG Chatbot</title>
+<style>
+  :root {
+    --bg: #0d1022; --panel: #171a30; --border: #2a2e4d;
+    --text: #f4f2fc; --muted: #9a94b8; --accent: #b18cff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  header { width: 100%; max-width: 860px; padding: 28px 20px 8px; }
+  h1 { font-size: 22px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  main { width: 100%; max-width: 860px; padding: 16px 20px 120px; flex: 1; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 14px;
+  }
+  .upload { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .upload input[type=file] { color: var(--muted); font-size: 13px; }
+  button {
+    background: var(--accent); color: #17102b; font-weight: 700; border: 0;
+    border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: wait; }
+  .status { color: var(--muted); font-size: 13px; }
+  .msg { padding: 12px 14px; border-radius: 10px; margin: 10px 0; line-height: 1.5; white-space: pre-wrap; }
+  .q { background: #23274a; margin-left: 15%; }
+  .a { background: var(--panel); border: 1px solid var(--border); margin-right: 15%; }
+  .srcs { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .srcs summary { cursor: pointer; color: var(--accent); }
+  .src { border-left: 2px solid var(--border); padding: 6px 10px; margin: 6px 0; }
+  form.ask {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 860px; padding: 14px 20px 22px;
+    background: var(--bg); display: flex; gap: 10px;
+  }
+  form.ask input {
+    flex: 1; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; color: var(--text); font-size: 15px;
+  }
+  form.ask input:focus { outline: 2px solid var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>RAG <span>Chatbot</span></h1>
+  <p class="sub">Upload a document, then ask questions. Answers cite their sources.</p>
+</header>
+<main>
+  <div class="card upload">
+    <input type="file" id="file" accept=".pdf,.txt,.md">
+    <button id="ingest">Ingest</button>
+    <span class="status" id="upstatus">No documents ingested yet.</span>
+  </div>
+  <div id="chat"></div>
+</main>
+<form class="ask" id="askform">
+  <input id="question" placeholder="Ask about the uploaded documents..." autocomplete="off">
+  <button id="askbtn">Ask</button>
+</form>
+<script>
+const $ = id => document.getElementById(id);
+
+$('ingest').onclick = async () => {
+  const f = $('file').files[0];
+  if (!f) { $('upstatus').textContent = 'Choose a file first.'; return; }
+  $('ingest').disabled = true;
+  $('upstatus').textContent = 'Ingesting...';
+  const fd = new FormData();
+  fd.append('file', f);
+  try {
+    const r = await fetch('/ingest', { method: 'POST', body: fd });
+    const j = await r.json();
+    $('upstatus').textContent = r.ok
+      ? `Indexed ${j.chunks_indexed} chunks from ${j.source}.`
+      : `Error: ${j.detail || r.status}`;
+  } catch (e) { $('upstatus').textContent = 'Error: ' + e; }
+  $('ingest').disabled = false;
+};
+
+$('askform').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const q = $('question').value.trim();
+  if (!q) return;
+  $('question').value = '';
+  add('q', q);
+  const wait = add('a', 'Thinking...');
+  $('askbtn').disabled = true;
+  try {
+    const r = await fetch('/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q }),
+    });
+    const j = await r.json();
+    if (!r.ok) { wait.textContent = 'Error: ' + (j.detail || r.status); return; }
+    wait.textContent = j.answer;
+    if (j.sources && j.sources.length) {
+      const d = document.createElement('details');
+      d.className = 'srcs';
+      d.innerHTML = '<summary>' + j.sources.length + ' source chunk(s)</summary>' +
+        j.sources.map(s =>
+          `<div class="src"><b>${esc(s.source)}</b> (score ${s.score})<br>${esc(s.chunk.slice(0, 300))}...</div>`
+        ).join('');
+      wait.appendChild(d);
+    }
+  } catch (e) { wait.textContent = 'Error: ' + e; }
+  $('askbtn').disabled = false;
+};
+
+function add(cls, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.textContent = text;
+  $('chat').appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
+  return div;
+}
+function esc(s) { const d = document.createElement('span'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>

@@ -13,6 +13,16 @@ cp .env.example .env        # add your OPENAI_API_KEY
 uvicorn app.main:app --reload
 ```
 
+Open http://localhost:8000 for the chat UI: upload a document, ask questions, expand the cited source chunks under each answer.
+
+## Deploy to Vercel
+
+```bash
+vercel --prod
+```
+
+Set `OPENAI_API_KEY` in the Vercel project settings. The vector store is in-memory (numpy cosine), so it runs on serverless with zero external services; ingested documents live for the lifetime of the function instance. For a persistent corpus, swap `RagStore` for a hosted vector DB.
+
 ```bash
 # ingest a document
 curl -F "file=@docs/handbook.pdf" http://localhost:8000/ingest
@@ -42,14 +52,16 @@ question  →  retriever (top-k)  →  LLM  →  answer + citations
 
 - Chunking with overlap so answers never lose context at boundaries
 - Every answer cites the retrieved chunks; no chunk retrieved above threshold means the bot says "I don't know" instead of hallucinating
-- Swap the LLM (OpenAI, Anthropic, Ollama) or store (FAISS, Pinecone) in `app/rag.py`
+- Swap the LLM (OpenAI, Anthropic, Ollama) or store (FAISS, Pinecone, Chroma) in `app/rag.py`
 
 ## Layout
 
 ```
-app/main.py   # FastAPI endpoints: /ingest, /ask, /health
-app/rag.py    # chunking, embedding, retrieval, answer generation
-tests/        # chunker + prompt unit tests (offline)
+app/main.py    # FastAPI: / (chat UI), /ingest, /ask, /health
+app/rag.py     # chunking, embedding, retrieval, answer generation
+web/index.html # single-file chat UI
+api/index.py   # Vercel serverless entry
+tests/         # chunker + prompt unit tests (offline)
 Dockerfile
 ```
 

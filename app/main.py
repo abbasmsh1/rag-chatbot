@@ -1,13 +1,23 @@
 """FastAPI endpoints for the RAG chatbot."""
 import io
+import os
 
 from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from .rag import RagStore
 
 app = FastAPI(title="rag-chatbot")
 _store = None
+
+_WEB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "index.html")
+
+
+@app.get("/", response_class=HTMLResponse)
+def ui():
+    with open(_WEB, encoding="utf-8") as f:
+        return f.read()
 
 
 def store():
