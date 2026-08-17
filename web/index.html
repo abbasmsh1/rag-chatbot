@@ -69,6 +69,8 @@
 </form>
 <script>
 const $ = id => document.getElementById(id);
+const SID = localStorage.sid || (localStorage.sid = crypto.randomUUID());
+const HDRS = { 'X-Session-Id': SID };
 
 $('ingest').onclick = async () => {
   const f = $('file').files[0];
@@ -78,7 +80,7 @@ $('ingest').onclick = async () => {
   const fd = new FormData();
   fd.append('file', f);
   try {
-    const r = await fetch('/ingest', { method: 'POST', body: fd });
+    const r = await fetch('/ingest', { method: 'POST', body: fd, headers: HDRS });
     const j = await r.json();
     $('upstatus').textContent = r.ok
       ? `Indexed ${j.chunks_indexed} chunks from ${j.source}.`
@@ -98,7 +100,7 @@ $('askform').onsubmit = async (ev) => {
   try {
     const r = await fetch('/ask', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...HDRS, 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: q }),
     });
     const j = await r.json();

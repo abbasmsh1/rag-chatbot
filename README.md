@@ -21,14 +21,15 @@ Open http://localhost:8000 for the chat UI: upload a document, ask questions, ex
 vercel --prod
 ```
 
-Set `OPENAI_API_KEY` in the Vercel project settings. The vector store is in-memory (numpy cosine), so it runs on serverless with zero external services; ingested documents live for the lifetime of the function instance. For a persistent corpus, swap `RagStore` for a hosted vector DB.
+Set `OPENAI_API_KEY` in the Vercel project settings. The vector store is in-memory (numpy cosine) and partitioned per browser session, so users on a shared deployment never see each other's documents; ingested content lives for the lifetime of the function instance. For a persistent corpus, swap `RagStore` for a hosted vector DB. Optional: set `DEMO_TOKEN` to require an `X-Demo-Token` header, protecting your OpenAI credits on a public URL.
 
 ```bash
 # ingest a document
-curl -F "file=@docs/handbook.pdf" http://localhost:8000/ingest
+curl -H "X-Session-Id: my-session-1" -F "file=@docs/handbook.pdf" http://localhost:8000/ingest
 
 # ask
 curl -X POST http://localhost:8000/ask \
+  -H "X-Session-Id: my-session-1" \
   -H "Content-Type: application/json" \
   -d '{"question": "What is the refund policy?"}'
 ```
