@@ -28,7 +28,7 @@ chunking, zero-downtime reindexing, and a full web console frontend.
 | registry.py  SQLite document registry (hash, chunk count, namespace version)  |
 +--------------------------------------------------------------------------------+
         |                                   |
-   OpenAI chat (gpt-4o-mini)          Pinecone serverless index
+   Claude (claude-opus-5)          Pinecone serverless index
                                       - metric: dotproduct
                                       - dense: llama-text-embed-v2 (1024d)
                                       - sparse: pinecone-sparse-english-v0
@@ -79,7 +79,7 @@ text in `data/docs/{id}.txt`.
 ### API (`app/main.py`)
 
 - `POST /ask` — body `{question, k, alpha, rerank}`; hybrid retrieve, rerank,
-  answer via gpt-4o-mini streamed as SSE; final event carries citations
+  answer via claude-opus-5 streamed as SSE; final event carries citations
   (source, score, excerpt).
 - `POST /ingest` — multipart file (pdf/txt/md); chunk, embed, upsert, register.
 - `GET /documents?page=&q=` — paginated registry listing.
@@ -125,6 +125,6 @@ with a fake store. Existing test file replaced.
 
 ## Env
 
-`PINECONE_API_KEY`, `OPENAI_API_KEY`, optional `DEMO_TOKEN`,
+`PINECONE_API_KEY`, `ANTHROPIC_API_KEY`, optional `DEMO_TOKEN`,
 `PINECONE_INDEX` (default `rag-chatbot`), `PINECONE_CLOUD`/`PINECONE_REGION`
 (default aws/us-east-1).

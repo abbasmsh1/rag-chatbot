@@ -1,7 +1,7 @@
 fastapi>=0.111
 uvicorn>=0.30
-openai>=1.30
-numpy>=1.26
+anthropic>=1.0
+pinecone>=5.0
 pypdf>=4.2
 python-multipart>=0.0.9
 pytest>=8.0
