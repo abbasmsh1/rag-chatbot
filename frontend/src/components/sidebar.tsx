@@ -8,7 +8,7 @@ import { getStats, type Stats } from "@/lib/api";
 const NAV = [
   { href: "/chat", label: "Chat", icon: "M8 10h8M8 14h5m-9 7 3-3h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v14Z" },
   { href: "/documents", label: "Documents", icon: "M9 12h6m-6 4h6M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" },
-  { href: "/index", label: "Index", icon: "M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Zm0 0v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" },
+  { href: "/indexing", label: "Index", icon: "M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3Zm0 0v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" },
 ];
 
 export default function Sidebar() {
