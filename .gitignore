@@ -1,6 +1,6 @@
-__pycache__/
-*.pyc
+data/
 .env
-chroma_db/
-.venv/
+*.pyc
+__pycache__/
 .pytest_cache/
+.venv/

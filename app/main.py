@@ -124,16 +124,19 @@ def ask(q: Question, x_demo_token: str | None = Header(default=None)):
             yield _sse("token", {"text": "I don't know - nothing indexed covers this."})
             yield _sse("sources", {"sources": []})
             return
-        import anthropic
+        try:
+            import anthropic
 
-        client = anthropic.Anthropic()
-        with client.messages.stream(
-            model=os.environ.get("ANSWER_MODEL", "claude-opus-5"),
-            max_tokens=4096,
-            messages=[{"role": "user", "content": build_prompt(q.question, [h["text"] for h in hits])}],
-        ) as resp:
-            for text in resp.text_stream:
-                yield _sse("token", {"text": text})
+            client = anthropic.Anthropic()
+            with client.messages.stream(
+                model=os.environ.get("ANSWER_MODEL", "claude-opus-5"),
+                max_tokens=4096,
+                messages=[{"role": "user", "content": build_prompt(q.question, [h["text"] for h in hits])}],
+            ) as resp:
+                for text in resp.text_stream:
+                    yield _sse("token", {"text": text})
+        except Exception as e:  # surface LLM failures in-stream instead of a dead connection
+            yield _sse("token", {"text": f"[answer generation failed: {e}]"})
         yield _sse("sources", {"sources": hits})
 
     return StreamingResponse(stream(), media_type="text/event-stream")
