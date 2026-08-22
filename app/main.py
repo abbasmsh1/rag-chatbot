@@ -8,7 +8,9 @@ import os
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 from .chunking import chunk_document
 from .registry import Registry, content_hash, doc_id_for
@@ -50,9 +52,9 @@ def check_token(x_demo_token):
 
 
 class Question(BaseModel):
-    question: str
-    k: int = 5
-    alpha: float = 0.7  # 1 = pure semantic, 0 = pure keyword
+    question: str = Field(max_length=4000)
+    k: int = Field(default=5, ge=1, le=20)
+    alpha: float = Field(default=0.7, ge=0, le=1)  # 1 = pure semantic, 0 = pure keyword
 
 
 def build_prompt(question, contexts):
@@ -103,6 +105,8 @@ def health():
 async def ingest(file: UploadFile, x_demo_token: str | None = Header(default=None)):
     check_token(x_demo_token)
     raw = await file.read()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"file exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit")
     name = file.filename or "upload"
     text = extract_text(raw, name)
     if not text.strip():
@@ -177,13 +181,17 @@ def _cli_answer(prompt):
     env = {k: v for k, v in os.environ.items() if not k.startswith("ANTHROPIC_")}
     sandbox = os.path.join(os.environ.get("RAG_DATA_DIR", "data"), "cli-sandbox")
     os.makedirs(sandbox, exist_ok=True)
+    # prompt goes over stdin: argv is world-readable in the process list
     proc = subprocess.Popen(
-        ["claude", "-p", prompt, "--output-format", "stream-json",
+        ["claude", "-p", "--output-format", "stream-json",
          "--include-partial-messages", "--verbose", "--max-turns", "1",
          "--disallowedTools", _CLI_DENIED_TOOLS],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, cwd=sandbox,
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, env=env, cwd=sandbox,
     )
     try:
+        proc.stdin.write(prompt)
+        proc.stdin.close()
         for line in proc.stdout:
             try:
                 event = json.loads(line).get("event", {})

@@ -117,3 +117,13 @@ def test_health_and_documents_endpoint():
     assert client.get("/health").json() == {"status": "ok"}
     resp = client.get("/documents")
     assert resp.status_code == 200 and "documents" in resp.json()
+
+
+def test_ask_rejects_out_of_range_params():
+    from fastapi.testclient import TestClient
+
+    client = TestClient(app)
+    assert client.post("/ask", json={"question": "q", "k": 0}).status_code == 422
+    assert client.post("/ask", json={"question": "q", "k": 100}).status_code == 422
+    assert client.post("/ask", json={"question": "q", "alpha": 1.5}).status_code == 422
+    assert client.post("/ask", json={"question": "x" * 5000}).status_code == 422
