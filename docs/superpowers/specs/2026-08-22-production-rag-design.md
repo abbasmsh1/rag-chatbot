@@ -3,8 +3,10 @@
 ## Goal
 
 Rebuild the demo RAG chatbot into a system that handles 1M+ documents in
-production: Pinecone vector store, hybrid (dense + sparse) indexing, variable
-chunking, zero-downtime reindexing, and a full web console frontend.
+production: Qdrant vector store (keyless: embedded or self-hosted), hybrid
+(dense + sparse) indexing, variable chunking, zero-downtime reindexing, and a
+full web console frontend. Revised 2026-08-22: Pinecone replaced with Qdrant
+per user request (no vector-DB API key), answer LLM switched to Claude.
 
 ## Non-goals
 
@@ -12,7 +14,7 @@ chunking, zero-downtime reindexing, and a full web console frontend.
 - Distributed task queue (Celery/Kafka). Bulk ingest is a checkpointed CLI
   script; in-app reindex uses FastAPI BackgroundTasks. Upgrade path noted in
   code where it matters.
-- Self-hosted embeddings.
+- Cross-encoder rerank stage (RRF-style weighted fusion only; noted in code).
 
 ## Architecture
 
@@ -24,16 +26,16 @@ chunking, zero-downtime reindexing, and a full web console frontend.
 +---------------------------------------- app/ (FastAPI) -----------------------+
 | main.py      endpoints: /ask /ingest /documents /reindex /stats /health       |
 | chunking.py  variable chunking (profiles + adaptive size)                     |
-| store.py     Pinecone hybrid store (embed, upsert, query, rerank, namespaces) |
+| store.py     Qdrant hybrid store (embed, upsert, query, fuse, namespaces)     |
 | registry.py  SQLite document registry (hash, chunk count, namespace version)  |
 +--------------------------------------------------------------------------------+
         |                                   |
-   Claude (claude-opus-5)          Pinecone serverless index
-                                      - metric: dotproduct
-                                      - dense: llama-text-embed-v2 (1024d)
-                                      - sparse: pinecone-sparse-english-v0
-                                      - rerank: bge-reranker-v2-m3
-                                      - namespaces: v1, v2, ... (reindex versions)
+   Claude (claude-opus-5)          Qdrant (embedded local, or QDRANT_URL server)
+                                      - named vectors: dense + sparse
+                                      - dense: BAAI/bge-small-en-v1.5 (384d, fastembed)
+                                      - sparse: Qdrant/bm25 + server-side IDF
+                                      - fusion: alpha-weighted, max-normalized
+                                      - collections: rag_v1, rag_v2, ... (reindex)
 ```
 
 ## Components
@@ -48,15 +50,18 @@ a fraction of chunk size. Output: list of `{text, ordinal}`.
 
 ### Hybrid store (`app/store.py`)
 
-- One serverless Pinecone index, `metric=dotproduct`, created on first use.
-- Embeddings via `pc.inference.embed`: dense `llama-text-embed-v2`,
-  sparse `pinecone-sparse-english-v0`. The sparse model is stateless — unlike
-  BM25 it needs no corpus fitting, so incremental ingest at 1M-doc scale never
-  requires re-fitting statistics.
-- Upserts batched (100 vectors/batch). Vector ids: `{doc_id}#{ordinal}`.
-- Query: alpha-weighted convex combination of dense and sparse query vectors
-  (Pinecone-documented `hybrid_score_norm`), `top_k` oversampled, then
-  `pc.inference.rerank` down to final k when rerank is enabled.
+- Qdrant, no API key: embedded local mode by default (`data/qdrant`), or a
+  self-hosted server via `QDRANT_URL` for production scale.
+- One collection per namespace version (`rag_v1`, ...), named vectors:
+  `dense` (cosine) + `sparse` (BM25 with server-side IDF modifier), created on
+  first use.
+- Embeddings local via fastembed (ONNX, no key): dense
+  `BAAI/bge-small-en-v1.5` (384d), sparse `Qdrant/bm25`. IDF lives in Qdrant,
+  so incremental ingest at 1M-doc scale never needs corpus re-fitting.
+- Upserts batched (256 points/batch). Point ids: UUID5 of `{doc_id}#{ordinal}`;
+  deletes filter on the `doc_id` payload field.
+- Query: dense and sparse searched separately (4x oversample), fused with an
+  alpha-weighted convex combination of max-normalized scores.
 - All reads/writes target the active namespace from the registry.
 
 ### Registry + reindexing (`app/registry.py`)
@@ -78,8 +83,8 @@ text in `data/docs/{id}.txt`.
 
 ### API (`app/main.py`)
 
-- `POST /ask` — body `{question, k, alpha, rerank}`; hybrid retrieve, rerank,
-  answer via claude-opus-5 streamed as SSE; final event carries citations
+- `POST /ask` — body `{question, k, alpha}`; hybrid retrieve + fuse, answer
+  via claude-opus-5 streamed as SSE; final event carries citations
   (source, score, excerpt).
 - `POST /ingest` — multipart file (pdf/txt/md); chunk, embed, upsert, register.
 - `GET /documents?page=&q=` — paginated registry listing.
@@ -102,7 +107,7 @@ generated with Stitch (dark, Space Grotesk/Inter, mint accent) and committed
 as reference. Routes:
 
 - `/chat` — streaming answers, inline citation chips, expandable source cards
-  with score bars; composer with top-k, alpha slider, rerank toggle.
+  with score bars; composer with top-k and alpha slider.
 - `/documents` — dropzone upload, paginated searchable table, delete.
 - `/index` — vector/document counts, active namespace, reindex trigger with
   live progress.
@@ -125,6 +130,5 @@ with a fake store. Existing test file replaced.
 
 ## Env
 
-`PINECONE_API_KEY`, `ANTHROPIC_API_KEY`, optional `DEMO_TOKEN`,
-`PINECONE_INDEX` (default `rag-chatbot`), `PINECONE_CLOUD`/`PINECONE_REGION`
-(default aws/us-east-1).
+`ANTHROPIC_API_KEY` (answers only), optional `QDRANT_URL` (unset = embedded
+local mode), `QDRANT_COLLECTION` (default `rag`), optional `DEMO_TOKEN`.

@@ -28,9 +28,9 @@ _registry = None
 def get_store():
     global _store
     if _store is None:
-        from .store import PineconeStore
+        from .store import QdrantStore
 
-        _store = PineconeStore()
+        _store = QdrantStore()
     return _store
 
 
@@ -52,7 +52,6 @@ class Question(BaseModel):
     question: str
     k: int = 5
     alpha: float = 0.7  # 1 = pure semantic, 0 = pure keyword
-    rerank: bool = True
 
 
 def build_prompt(question, contexts):
@@ -117,7 +116,7 @@ def ask(q: Question, x_demo_token: str | None = Header(default=None)):
         raise HTTPException(400, "question is empty")
     registry = get_registry()
     hits = get_store().query(
-        q.question, registry.active_namespace, k=q.k, alpha=q.alpha, rerank=q.rerank
+        q.question, registry.active_namespace, k=q.k, alpha=q.alpha
     )
 
     def stream():

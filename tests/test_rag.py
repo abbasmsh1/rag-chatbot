@@ -9,7 +9,7 @@ os.environ["RAG_DATA_DIR"] = "/tmp/rag-test-data"
 from app.chunking import chunk_document, detect_profile, adaptive_target  # noqa: E402
 from app.main import app, build_prompt, get_registry, ingest_text  # noqa: E402
 from app.registry import Registry, content_hash, doc_id_for  # noqa: E402
-from app.store import hybrid_score_norm  # noqa: E402
+from app.store import fuse  # noqa: E402
 
 
 # -- chunking -----------------------------------------------------------------
@@ -44,12 +44,19 @@ def test_empty_document():
 
 # -- hybrid scoring -------------------------------------------------------------
 
-def test_hybrid_score_norm_weights():
-    dense, sparse = hybrid_score_norm([1.0, 2.0], {"indices": [3], "values": [4.0]}, alpha=0.75)
-    assert dense == [0.75, 1.5]
-    assert sparse["values"] == [1.0]
+def test_fuse_weights_and_normalizes():
+    dense = [{"id": "a", "score": 0.8, "text": "A"}, {"id": "b", "score": 0.4, "text": "B"}]
+    sparse = [{"id": "b", "score": 12.0, "text": "B"}, {"id": "c", "score": 6.0, "text": "C"}]
+    out = fuse(dense, sparse, alpha=0.5, k=3)
+    scores = {h["id"]: h["score"] for h in out}
+    # b: 0.5*(0.4/0.8) + 0.5*(12/12) = 0.75 -> tops both single-list leaders
+    assert out[0]["id"] == "b" and scores["b"] == 0.75
+    assert scores["a"] == 0.5 and scores["c"] == 0.25
+    assert fuse(dense, sparse, alpha=1.0, k=1)[0]["id"] == "a"   # pure semantic
+    assert fuse(dense, sparse, alpha=0.0, k=1)[0]["id"] == "b"   # pure keyword
+    assert fuse([], [], alpha=0.5, k=3) == []
     with pytest.raises(ValueError):
-        hybrid_score_norm([1.0], {"indices": [], "values": []}, alpha=1.5)
+        fuse(dense, sparse, alpha=1.5, k=3)
 
 
 # -- registry -----------------------------------------------------------------
