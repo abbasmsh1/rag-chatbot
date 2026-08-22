@@ -68,7 +68,7 @@ export default function DocumentsPage() {
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
         className={`mt-6 grid cursor-pointer place-items-center rounded-2xl border border-dashed px-6 py-10 text-center transition-colors ${
-          dragging ? "border-accent bg-accent-dim" : "border-border-strong hover:bg-surface"
+          dragging ? "border-accent bg-accent-dim" : "border-border-strong hover:bg-white/[0.02]"
         }`}
       >
         <input
@@ -97,7 +97,7 @@ export default function DocumentsPage() {
             setQ(e.target.value);
           }}
           placeholder="Filter by source..."
-          className="w-64 rounded-xl border border-border bg-surface px-3 py-1.5 text-sm outline-none placeholder:text-muted focus:border-border-strong"
+          className="w-64 rounded-xl border border-border bg-white/[0.03] px-3 py-1.5 text-sm outline-none transition-colors placeholder:text-muted focus:border-[color:rgba(110,231,183,0.35)]"
         />
         {pages > 1 && (
           <div className="ml-auto flex items-center gap-2 text-xs text-muted">
@@ -122,10 +122,10 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-2xl border border-border">
+      <div className="pane mt-3 overflow-x-auto rounded-2xl">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border bg-surface text-left text-xs text-muted">
+            <tr className="glass border-b text-left text-xs text-muted">
               <th className="px-4 py-2.5 font-medium">Source</th>
               <th className="px-4 py-2.5 font-medium">Chunks</th>
               <th className="px-4 py-2.5 font-medium">Profile</th>
@@ -142,11 +142,11 @@ export default function DocumentsPage() {
               </tr>
             )}
             {docs.map((d) => (
-              <tr key={d.id} className="border-b border-border last:border-0 hover:bg-surface">
+              <tr key={d.id} className="border-b border-border transition-colors last:border-0 hover:bg-white/[0.02]">
                 <td className="max-w-64 truncate px-4 py-2.5">{d.source}</td>
                 <td className="px-4 py-2.5 font-mono text-xs">{d.chunk_count}</td>
                 <td className="px-4 py-2.5">
-                  <span className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-muted">
+                  <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-xs text-muted">
                     {d.chunk_profile}
                   </span>
                 </td>

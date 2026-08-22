@@ -63,7 +63,7 @@ export default function ChatPage() {
           )}
           {messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} className="ml-auto max-w-[80%] rounded-2xl rounded-br-md bg-surface-2 px-4 py-2.5 text-sm">
+              <div key={i} className="pane ml-auto max-w-[80%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm">
                 {m.text}
               </div>
             ) : (
@@ -85,9 +85,9 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="border-t border-border bg-surface px-6 py-4">
+      <div className="glass border-t px-6 py-4">
         <div className="mx-auto max-w-3xl">
-          <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-2 p-2 focus-within:border-border-strong">
+          <div className="flex items-end gap-2 rounded-2xl border border-border bg-white/[0.03] p-2 transition-colors focus-within:border-[color:rgba(110,231,183,0.35)]">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -105,7 +105,7 @@ export default function ChatPage() {
               onClick={send}
               disabled={busy || !input.trim()}
               aria-label="Send"
-              className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-background transition-opacity disabled:opacity-30"
+              className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-background shadow-[0_2px_12px_rgba(110,231,183,0.25)] transition-opacity disabled:opacity-30 disabled:shadow-none"
             >
               <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 19V5m-6 6 6-6 6 6" />
@@ -170,14 +170,14 @@ function SourceList({ sources }: { sources: Source[] }) {
       {open && (
         <div className="mt-2 flex flex-col gap-2">
           {sources.map((s, i) => (
-            <div key={s.id} className="rounded-xl border border-border bg-surface p-3">
+            <div key={s.id} className="pane rounded-xl p-3">
               <div className="flex items-center gap-2 text-xs">
                 <span className="rounded bg-accent-dim px-1.5 py-0.5 font-mono text-accent">
                   [{i + 1}]
                 </span>
                 <span className="truncate font-medium">{s.source}</span>
                 <div className="ml-auto flex items-center gap-1.5">
-                  <div className="h-1 w-16 overflow-hidden rounded-full bg-surface-2">
+                  <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.08]">
                     <div
                       className="h-full rounded-full bg-accent"
                       style={{ width: `${Math.min(s.score, 1) * 100}%` }}

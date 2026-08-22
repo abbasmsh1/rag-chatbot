@@ -20,7 +20,7 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface">
+    <aside className="glass flex w-56 shrink-0 flex-col border-r">
       <div className="flex items-center gap-2.5 px-5 py-5">
         <span className="grid size-8 place-items-center rounded-xl bg-accent-dim text-accent">
           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -42,7 +42,7 @@ export default function Sidebar() {
               className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
                 active
                   ? "bg-accent-dim font-medium text-accent"
-                  : "text-muted hover:bg-surface-2 hover:text-foreground"
+                  : "text-muted hover:bg-white/[0.04] hover:text-foreground"
               }`}
             >
               <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -54,7 +54,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="mt-auto border-t border-border p-4">
+      <div className="mt-auto border-t border-[color:var(--glass-border)] p-4">
         {stats ? (
           <div className="flex items-center gap-2 text-xs text-muted">
             <span

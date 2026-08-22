@@ -11,6 +11,9 @@
   --accent: #6ee7b7;
   --accent-dim: rgba(110, 231, 183, 0.12);
   --danger: #f87171;
+  --glass: rgba(17, 17, 19, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --highlight: rgba(255, 255, 255, 0.06);
 }
 
 @theme inline {
@@ -33,18 +36,84 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), system-ui, sans-serif;
+  caret-color: var(--accent);
+}
+
+/* fixed atmosphere the glass chrome blurs against */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42rem 28rem at 12% -8%, rgba(110, 231, 183, 0.07), transparent 60%),
+    radial-gradient(38rem 26rem at 96% 110%, rgba(110, 231, 183, 0.05), transparent 65%),
+    var(--background);
 }
 
 h1, h2, h3 {
   font-family: var(--font-space-grotesk), system-ui, sans-serif;
 }
 
+/* translucent chrome: sidebar, composer bar, sticky headers */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border-color: var(--glass-border);
+}
+
+/* translucent card with a lit top edge */
+.pane {
+  background: linear-gradient(180deg, var(--highlight), transparent 1.5px),
+    rgba(255, 255, 255, 0.028);
+  border: 1px solid var(--glass-border);
+  transition: border-color 160ms ease-out, background-color 160ms ease-out;
+}
+
+.pane:hover {
+  border-color: var(--border-strong);
+}
+
 ::selection {
   background: var(--accent-dim);
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* fields carry their own focus border; keep the ring for keyboard-nav chrome */
+textarea:focus-visible,
+input:focus-visible {
+  outline: none;
 }
 
 input[type="range"] {
   accent-color: var(--accent);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 @keyframes pulse-dot {

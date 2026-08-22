@@ -38,7 +38,7 @@ export default function IndexPage() {
         <Stat label="Active namespace" value={stats?.active_namespace} mono />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
+      <div className="pane mt-6 rounded-2xl p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-medium">Reindex</h3>
@@ -55,7 +55,7 @@ export default function IndexPage() {
                 .catch((e) => setError(e.message))
             }
             disabled={reindexing || !stats}
-            className="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-background transition-opacity disabled:opacity-30"
+            className="shrink-0 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-background shadow-[0_2px_12px_rgba(110,231,183,0.25)] transition-opacity disabled:opacity-30 disabled:shadow-none"
           >
             {reindexing ? "Running..." : "Start reindex"}
           </button>
@@ -69,7 +69,7 @@ export default function IndexPage() {
               </span>
               <span className="font-mono">{Math.round(progress * 100)}%</span>
             </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2">
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
               <div
                 className="h-full rounded-full bg-accent transition-[width] duration-500"
                 style={{ width: `${progress * 100}%` }}
@@ -82,7 +82,7 @@ export default function IndexPage() {
         )}
       </div>
 
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
+      <div className="pane mt-6 rounded-2xl p-5">
         <h3 className="text-sm font-medium">Namespaces</h3>
         <div className="mt-3 flex flex-col gap-2">
           {stats && Object.keys(stats.namespaces).length === 0 && (
@@ -110,7 +110,7 @@ export default function IndexPage() {
 
 function Stat({ label, value, mono }: { label: string; value?: number | string | null; mono?: boolean }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
+    <div className="pane rounded-2xl p-4">
       <div className="text-xs text-muted">{label}</div>
       <div className={`mt-1 text-lg font-medium tabular-nums ${mono ? "font-mono text-base" : ""}`}>
         {value == null ? "—" : typeof value === "number" ? value.toLocaleString() : value}
