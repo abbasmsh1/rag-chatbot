@@ -124,17 +124,11 @@ def ask(q: Question, x_demo_token: str | None = Header(default=None)):
             yield _sse("token", {"text": "I don't know - nothing indexed covers this."})
             yield _sse("sources", {"sources": []})
             return
+        prompt = build_prompt(q.question, [h["text"] for h in hits])
         try:
-            import anthropic
-
-            client = anthropic.Anthropic()
-            with client.messages.stream(
-                model=os.environ.get("ANSWER_MODEL", "claude-opus-5"),
-                max_tokens=4096,
-                messages=[{"role": "user", "content": build_prompt(q.question, [h["text"] for h in hits])}],
-            ) as resp:
-                for text in resp.text_stream:
-                    yield _sse("token", {"text": text})
+            gen = _cli_answer(prompt) if _answer_backend() == "cli" else _sdk_answer(prompt)
+            for text in gen:
+                yield _sse("token", {"text": text})
         except Exception as e:  # surface LLM failures in-stream instead of a dead connection
             yield _sse("token", {"text": f"[answer generation failed: {e}]"})
         yield _sse("sources", {"sources": hits})
@@ -144,6 +138,54 @@ def ask(q: Question, x_demo_token: str | None = Header(default=None)):
 
 def _sse(event, data):
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+def _answer_backend():
+    """'sdk' needs a real API key; a Claude subscription answers through the
+    local `claude` CLI instead. Override with ANSWER_BACKEND=sdk|cli."""
+    explicit = os.environ.get("ANSWER_BACKEND")
+    if explicit:
+        return explicit
+    return "sdk" if os.environ.get("ANTHROPIC_API_KEY", "").startswith("sk-ant-api") else "cli"
+
+
+def _sdk_answer(prompt):
+    import anthropic
+
+    client = anthropic.Anthropic()
+    with client.messages.stream(
+        model=os.environ.get("ANSWER_MODEL", "claude-opus-5"),
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
+    ) as resp:
+        yield from resp.text_stream
+
+
+def _cli_answer(prompt):
+    """Stream tokens from headless Claude Code (subscription auth)."""
+    import subprocess
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith("ANTHROPIC_")}
+    proc = subprocess.Popen(
+        ["claude", "-p", prompt, "--output-format", "stream-json",
+         "--include-partial-messages", "--verbose", "--max-turns", "1"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env,
+    )
+    try:
+        for line in proc.stdout:
+            try:
+                event = json.loads(line).get("event", {})
+            except json.JSONDecodeError:
+                continue
+            if event.get("type") == "content_block_delta":
+                text = event.get("delta", {}).get("text")
+                if text:
+                    yield text
+    finally:
+        proc.stdout.close()
+        code = proc.wait()
+        if code != 0:
+            raise RuntimeError(f"claude CLI exited {code}: {proc.stderr.read()[:300]}")
 
 
 @app.get("/documents")
